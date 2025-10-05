@@ -26,7 +26,7 @@ const LandingPage: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <h1 className="text-xl font-bold gradient-text">FaceCare AI</h1>
+              <h1 className="text-lg md:text-xl font-bold gradient-text">FaceCare AI</h1>
             </div>
             <div className="hidden md:flex items-center space-x-8">
               <a href="#features" className="text-gray-300 hover:text-white transition-colors">Features</a>
@@ -37,6 +37,12 @@ const LandingPage: React.FC = () => {
                 Get Started
               </GlowButton>
             </div>
+            {/* Mobile Menu Button */}
+            <div className="md:hidden">
+              <GlowButton onClick={() => navigate('/auth')} size="sm">
+                Sign In
+              </GlowButton>
+            </div>
           </div>
         </div>
       </nav>
@@ -44,26 +50,26 @@ const LandingPage: React.FC = () => {
       {/* Hero Section */}
       <section className="hero-bg min-h-screen flex items-center justify-center px-4 pt-16">
         <div className="max-w-6xl mx-auto text-center">
-          <div className="mb-12">
-            <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
+          <div className="mb-8 md:mb-12">
+            <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 md:mb-6 leading-tight">
               Professional AI-Powered
               <span className="gradient-text block">Skin Health Analysis</span>
             </h1>
-            <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-3xl mx-auto leading-relaxed">
+            <p className="text-base md:text-lg lg:text-xl text-gray-300 mb-6 md:mb-8 max-w-3xl mx-auto leading-relaxed px-4">
               Advanced artificial intelligence technology for comprehensive skin health assessment, 
               personalized treatment recommendations, and professional-grade analysis.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center px-4">
               <GlowButton 
                 size="lg" 
                 onClick={() => navigate('/auth')}
-                className="text-base"
+                className="text-sm md:text-base w-full sm:w-auto"
               >
                 Start Analysis
-                <ArrowRight className="w-5 h-5 ml-2" />
+                <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2" />
               </GlowButton>
-              <button className="flex items-center justify-center px-8 py-4 text-base font-semibold text-white border border-gray-600 rounded-lg hover:border-purple-500 transition-colors">
-                <Play className="w-5 h-5 mr-2" />
+              <button className="flex items-center justify-center px-6 md:px-8 py-3 md:py-4 text-sm md:text-base font-semibold text-white border border-gray-600 rounded-lg hover:border-purple-500 transition-colors w-full sm:w-auto">
+                <Play className="w-4 h-4 md:w-5 md:h-5 mr-2" />
                 Watch Demo
               </button>
             </div>
@@ -72,19 +78,19 @@ const LandingPage: React.FC = () => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 px-4 bg-gray-900">
+      <section id="features" className="py-12 md:py-20 px-4 bg-gray-900">
         <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+          <div className="text-center mb-12 md:mb-16">
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4">
               Advanced AI Technology
             </h2>
-            <p className="text-lg text-gray-300 max-w-2xl mx-auto">
+            <p className="text-base md:text-lg text-gray-300 max-w-2xl mx-auto">
               Cutting-edge machine learning algorithms provide accurate skin analysis 
               and personalized treatment recommendations.
             </p>
           </div>
           
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             <FeatureCard
               icon={Camera}
               title="Real-Time Scanning"

@@ -6,6 +6,7 @@ interface GlowButtonProps {
   variant?: 'primary' | 'secondary';
   size?: 'sm' | 'md' | 'lg';
   className?: string;
+  disabled?: boolean;
 }
 
 const GlowButton: React.FC<GlowButtonProps> = ({
@@ -14,12 +15,13 @@ const GlowButton: React.FC<GlowButtonProps> = ({
   variant = 'primary',
   size = 'md',
   className = '',
+  disabled = false,
 }) => {
-  const baseClasses = 'relative overflow-hidden font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-2xl';
+  const baseClasses = 'relative overflow-hidden font-semibold rounded-lg transition-all duration-300 transform hover:scale-105 hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100';
   
   const variantClasses = variant === 'primary'
-    ? 'bg-gradient-to-r from-purple-600 to-blue-500 text-white hover:glow-purple'
-    : 'bg-gradient-to-r from-gray-700 to-gray-800 text-white hover:glow-cyan border border-purple-500/30';
+    ? 'bg-gradient-to-r from-purple-600 to-blue-500 text-white hover:glow-purple disabled:hover:from-purple-600 disabled:hover:to-blue-500'
+    : 'bg-gradient-to-r from-gray-700 to-gray-800 text-white hover:glow-cyan border border-purple-500/30 disabled:hover:from-gray-700 disabled:hover:to-gray-800';
     
   const sizeClasses = {
     sm: 'px-4 py-2 text-sm',
@@ -30,6 +32,7 @@ const GlowButton: React.FC<GlowButtonProps> = ({
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       className={`${baseClasses} ${variantClasses} ${sizeClasses[size]} ${className}`}
     >
       <span className="relative z-10">{children}</span>
