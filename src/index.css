@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+@import "@crayonai/react-ui/styles/index.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* C1 Component Styling */
+.c1-response-wrapper {
+  width: 100%;
+  --c1-primary: theme('colors.indigo.500');
+  --c1-primary-hover: theme('colors.indigo.600');
+  --c1-primary-active: theme('colors.indigo.700');
+  --c1-primary-surface: theme('colors.indigo.50');
+  --c1-primary-surface-hover: theme('colors.indigo.100');
+}
+
+/* Fix background issues */
+.c1-response-wrapper .Card {
+  background-color: transparent !important;
+}
+
+/* Make sure content isn't too wide */
+.c1-response-wrapper {
+  max-width: 100%;
+  overflow-x: hidden;
+}
