@@ -216,6 +216,92 @@ const AnalysisResults: React.FC = () => {
 
   // Get severity color based on level (extending the previous function)
 
+  // Export the current analysis as a printable report (open print preview so user can save as PDF)
+  const exportReportAsPDF = () => {
+    if (!analysisData) return;
+    try {
+      const reportHtml = `
+        <html>
+          <head>
+            <title>FaceCare AI - Analysis Report</title>
+            <style>
+              body { background: #0b0b0b; color: #fff; font-family: Arial, Helvetica, sans-serif; padding: 24px }
+              .header { display:flex; justify-content:space-between; align-items:center }
+              .score { font-size:28px; font-weight:700 }
+              .section { margin-top:18px }
+              .issue { margin-bottom:8px }
+            </style>
+          </head>
+          <body>
+            <div class="header">
+              <div>
+                <h1>FaceCare AI — Analysis Report</h1>
+                <div>Generated: ${new Date().toLocaleString()}</div>
+              </div>
+              <div class="score">${analysisData.healthy}/100</div>
+            </div>
+            <div class="section">
+              <h2>Summary</h2>
+              <p>${analysisData.issue_description}</p>
+            </div>
+            <div class="section">
+              <h2>Detected Issues</h2>
+              ${analysisData.issue_locations.map(i => `<div class="issue"><strong>${i.body_part}</strong>: ${i.location}</div>`).join('')}
+            </div>
+            <div class="section">
+              <h2>Ayurvedic Remedies</h2>
+              ${analysisData.remedies_ayurvedic.map(r => `<div class="issue">${r}</div>`).join('')}
+            </div>
+            <div class="section">
+              <h2>Yoga Recommendations</h2>
+              ${analysisData.yoga_recommendations.map(r => `<div class="issue">${r}</div>`).join('')}
+            </div>
+            <div class="section">
+              <h2>Supplements</h2>
+              ${analysisData.faster_supplements.map(s => `<div class="issue">${s}</div>`).join('')}
+            </div>
+            <script>
+              setTimeout(()=>{ window.print(); }, 250);
+            </script>
+          </body>
+        </html>
+      `;
+
+      const w = window.open('', '_blank');
+      if (!w) {
+        alert('Please allow popups to download the report.');
+        return;
+      }
+      w.document.open();
+      w.document.write(reportHtml);
+      w.document.close();
+    } catch (err) {
+      console.error('Failed to export report', err);
+      alert('Failed to export report');
+    }
+  };
+
+  const shareReport = async () => {
+    if (!analysisData) return;
+    const summary = `FaceCare AI Analysis — Score ${analysisData.healthy}/100\nSummary: ${analysisData.issue_description}`;
+    try {
+      if ((navigator as any).share) {
+        await (navigator as any).share({
+          title: 'FaceCare AI Analysis Report',
+          text: summary,
+        });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(summary);
+        alert('Summary copied to clipboard — you can paste it into a message or email.');
+      } else {
+        alert('Sharing not supported on this device.');
+      }
+    } catch (err) {
+      console.error('Share failed', err);
+      alert('Sharing failed');
+    }
+  };
+
   // Loading component
   if (isLoading) {
     return (
@@ -348,11 +434,11 @@ const AnalysisResults: React.FC = () => {
             </div>
             
             <div className="flex items-center space-x-4">
-              <GlowButton variant="secondary" size="sm">
+              <GlowButton variant="secondary" size="sm" onClick={exportReportAsPDF}>
                 <Download className="w-4 h-4 mr-2" />
                 Download Report
               </GlowButton>
-              <GlowButton variant="secondary" size="sm">
+              <GlowButton variant="secondary" size="sm" onClick={shareReport}>
                 <Share className="w-4 h-4 mr-2" />
                 Share with Doctor
               </GlowButton>
@@ -559,11 +645,11 @@ const AnalysisResults: React.FC = () => {
           <GlowButton onClick={() => navigate('/dashboard')} size="lg">
             New Analysis
           </GlowButton>
-          <GlowButton variant="secondary" size="lg">
+          <GlowButton variant="secondary" size="lg" onClick={exportReportAsPDF}>
             <Download className="w-5 h-5 mr-2" />
             Download Report
           </GlowButton>
-          <GlowButton variant="secondary" size="lg">
+          <GlowButton variant="secondary" size="lg" onClick={shareReport}>
             <Share className="w-5 h-5 mr-2" />
             Share Results
           </GlowButton>

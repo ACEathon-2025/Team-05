@@ -8,6 +8,8 @@ import os
 from io import BytesIO
 from PIL import Image
 import traceback
+import re
+import html
 from langchain_core.messages import HumanMessage
 from agents import graph
 from chat_routes import create_chat_route
@@ -32,14 +34,14 @@ def process_image_data(image_data):
         logger.info(f"Processing image data, length: {len(image_data)}")
         logger.info(f"Image data starts with: {image_data[:50]}")
         
-        # Handle data URL format (data:image/jpeg;base64,...)
+        
         if image_data.startswith('data:image'):
             # Extract the base64 part
             header, encoded = image_data.split(',', 1)
             image_format = header.split(';')[0].split('/')[1]  # Extract format (jpeg, png, etc.)
             logger.info(f"Detected image format: {image_format}")
         else:
-            # Assume it's pure base64
+            
             encoded = image_data
             image_format = 'unknown'  # Default format
             logger.info("No data URL header found, assuming pure base64")
@@ -137,6 +139,34 @@ def analyze_skin():
         # Extract the final output
         final_output = result.get("final_output", "")
         
+        # Small sanitizer for assistant/agent text to remove code fences, backticks, HTML and escaped artifacts
+        def clean_text(raw: str) -> str:
+            if not isinstance(raw, str):
+                return raw
+            s = raw
+            # Remove fenced code blocks ```...```
+            s = re.sub(r"```[\s\S]*?```", "", s)
+            # Remove inline backticks `like this`
+            s = re.sub(r"`([^`]*)`", r"\1", s)
+            # Strip HTML tags
+            s = re.sub(r"<[^>]+>", " ", s)
+            # Decode common HTML entities
+            s = html.unescape(s)
+            # Convert literal escape sequences to actual characters
+            s = s.replace('\\n', '\n').replace('\\t', '\t').replace('\\r', '\r')
+            # Remove single-line comment markers and block comments
+            s = re.sub(r"//.*?$", "", s, flags=re.MULTILINE)
+            s = re.sub(r"/\*[\s\S]*?\*/", "", s)
+            # Remove leading list or quote markers at line starts (e.g., -, *, >, 1.)
+            s = re.sub(r"^\s*([-*•>\d\.\)]+\s*)", "", s, flags=re.MULTILINE)
+            # Remove repeated separators
+            s = re.sub(r"[-_*]{3,}", "", s)
+            # Collapse multiple blank lines
+            s = re.sub(r"\n{3,}", "\n\n", s)
+            # Trim whitespace
+            s = s.strip()
+            return s
+
         # Parse JSON from the output
         if final_output.startswith("```json"):
             # Extract JSON from markdown code blocks
@@ -171,7 +201,8 @@ def analyze_skin():
             return jsonify({
                 "success": True,
                 "data": analysis_result,
-                "raw_output": final_output  # Include raw output for debugging
+                "raw_output": final_output,  # Include raw output for debugging
+                "cleaned_output": clean_text(final_output)
             })
             
         except json.JSONDecodeError as e:
@@ -180,6 +211,7 @@ def analyze_skin():
             return jsonify({
                 "error": "Failed to parse analysis result",
                 "raw_output": final_output,
+                "cleaned_output": clean_text(final_output),
                 "json_error": str(e)
             }), 500
             

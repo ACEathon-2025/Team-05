@@ -33,3 +33,74 @@
   height: 1px;
   background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.3), transparent);
 }
+
+.liquid-ether-container {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  pointer-events: auto; /* Enable mouse interaction */
+}
+
+/* Custom PillNav Styles */
+.pill-nav-container {
+  position: fixed;
+  top: 1.5rem;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  z-index: 100;
+}
+
+.pill-nav {
+  --nav-h: 50px; /* Increased height */
+  --pill-pad-x: 24px; /* Increased horizontal padding */
+  --pill-gap: 4px; /* Increased gap between pills */
+  border-radius: 9999px;
+  padding: 0 6px;
+  backdrop-filter: blur(10px);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(82, 39, 255, 0.2); /* Subtle purple border */
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.pill-nav-items {
+  height: var(--nav-h);
+  background: transparent;
+}
+
+.pill-list {
+  gap: var(--pill-gap);
+  padding: 4px;
+}
+
+.pill-logo {
+  width: calc(var(--nav-h) + 4px);
+  height: calc(var(--nav-h) + 4px);
+  margin-right: 8px;
+  border: 1px solid rgba(82, 39, 255, 0.3);
+  box-shadow: 0 0 15px rgba(82, 39, 255, 0.3);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.pill {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(82, 39, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.pill:hover {
+  box-shadow: 0 0 15px rgba(82, 39, 255, 0.5);
+}
+
+.pill.is-active::after {
+  background: #5227FF;
+  width: 8px;
+  height: 8px;
+  bottom: -4px;
+}
+

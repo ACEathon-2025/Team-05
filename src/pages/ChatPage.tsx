@@ -6,7 +6,7 @@ import {
   Bot, 
   User,
   Sparkles,
-  MessageCircle,
+  
   ChevronRight
 } from 'lucide-react';
 import { C1Component, ThemeProvider } from "@thesysai/genui-sdk";
@@ -18,6 +18,7 @@ interface Message {
   content: string;
   timestamp: Date;
   isC1Response?: boolean;
+  ask?: any;
 }
 
 interface QuestionData {
@@ -33,15 +34,17 @@ const ChatPage: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showChatbox, setShowChatbox] = useState(false);
+  // showChatbox removed; chat view controlled via currentStep
   const [answers, setAnswers] = useState<string[]>([]);
   const [conversationId, setConversationId] = useState<string>(`user-${Date.now()}`);
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
 
   const questions: QuestionData[] = [
     {
-      question: "What's your biological age range?",
+      // Simpler first question as requested
+      question: "What's your current age?",
       options: ["13-18", "19-25", "26-35", "36-45", "46-55", "55+"]
     },
     {
@@ -64,10 +67,27 @@ const ChatPage: React.FC = () => {
     }
   }, [messages]);
 
-  const handleStartConsultation = () => {
-    setCurrentStep('questions');
-    setTimeout(() => setShowChatbox(true), 300);
+  // Load saved conversations from backend debug endpoint for the left sidebar
+  const loadConversations = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/debug/conversations');
+      if (!res.ok) return;
+      const data = await res.json();
+      const convs = Object.entries(data.conversations || {}).map(([id, info]: any) => ({ id, ...info }));
+      setConversations(convs.reverse());
+    } catch (err) {
+      console.warn('Could not load conversations for sidebar', err);
+    }
   };
+
+  useEffect(() => {
+    loadConversations();
+    // poll periodically so sidebar stays updated while using chat
+    const t = setInterval(loadConversations, 10000);
+    return () => clearInterval(t);
+  }, []);
+
+  // intro flow replaced by ChatGPT-like interface; keep entry points via New Chat or sidebar
 
   const handleAnswerSelect = (answer: string) => {
     const newAnswers = [...answers, answer];
@@ -85,8 +105,14 @@ const ChatPage: React.FC = () => {
     if (currentQuestionIndex < questions.length - 1) {
       // Move to next question
       setTimeout(() => {
+        const nextIndex = currentQuestionIndex + 1;
         setCurrentQuestionIndex(prev => prev + 1);
-        addBotMessage(questions[currentQuestionIndex + 1].question);
+        const askObj = {
+          id: `q-${nextIndex}`,
+          question: questions[nextIndex].question,
+          options: questions[nextIndex].options
+        };
+        addBotMessage(questions[nextIndex].question, false, askObj);
       }, 1000);
     } else {
       // All questions answered, send to API
@@ -96,16 +122,54 @@ const ChatPage: React.FC = () => {
     }
   };
 
-  const addBotMessage = (content: string, isC1Response: boolean = false) => {
+  const addBotMessage = (content: string, isC1Response: boolean = false, ask?: any) => {
+    const visibleContent = !isC1Response ? cleanAssistantText(content) : content;
     const botMessage: Message = {
       id: Date.now().toString(),
       role: 'assistant',
-      content,
+      content: visibleContent,
       timestamp: new Date(),
-      isC1Response
+      isC1Response,
+      ask
     };
     setMessages(prev => [...prev, botMessage]);
   };
+
+  const isLikelyC1 = (text: any) => {
+    if (!text) return false;
+    if (typeof text !== 'string') return false;
+    const t = text.trim();
+    return t.startsWith('{') || t.startsWith('<') || t.includes('"component"') || t.includes('"ui"');
+  }
+
+  // Decode HTML entities in a browser-safe way
+  const decodeHtml = (input: string) => {
+    try {
+      const txt = document.createElement('textarea');
+      txt.innerHTML = input;
+      return txt.value;
+    } catch (e) {
+      // fallback simple replace for common entities
+      return input.replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+    }
+  }
+
+  // Normalize C1 responses that may be wrapped in HTML and escaped entities
+  const normalizeC1Response = (raw: string) => {
+    if (!raw || typeof raw !== 'string') return raw;
+    let s = raw.trim();
+    // If wrapped in <content>..</content> or similar, strip tags first
+    s = s.replace(/^<[^>]+>/, '').replace(/<[^>]+>$/, '');
+    // Decode HTML entities
+    s = decodeHtml(s);
+    // Extract JSON blob between first { and last }
+    const start = s.indexOf('{');
+    const end = s.lastIndexOf('}');
+    if (start !== -1 && end !== -1 && end > start) {
+      return s.slice(start, end + 1);
+    }
+    return s;
+  }
 
   const handleSendAnswersToAPI = async (allAnswers: string[]) => {
     setIsLoading(true);
@@ -140,9 +204,13 @@ const ChatPage: React.FC = () => {
         }
         
         // Add bot message with response - check if it's a C1 response
-        const response = data.response || "Thank you for completing the assessment! I can now provide personalized skincare recommendations. What would you like to know?";
-        const isC1Response = typeof response === 'string' && 
-          (response.trim().startsWith('{') || response.trim().startsWith('<'));
+        let response = data.response || "Thank you for completing the assessment! I can now provide personalized skincare recommendations. What would you like to know?";
+        // Normalize any HTML-escaped C1 responses
+        if (isLikelyC1(response) || response.includes('&quot;') || response.includes('<')) {
+          const normalized = normalizeC1Response(response);
+          response = normalized;
+        }
+        const isC1Response = isLikelyC1(response);
         addBotMessage(response, isC1Response);
       } else {
         setError(data.error || 'Failed to get a response from the AI assistant');
@@ -164,8 +232,27 @@ I can now provide personalized skincare recommendations. What specific advice wo
     } finally {
       setIsLoading(false);
       setCurrentStep('chat');
+      // refresh sidebar conversations after creating new conv
+      loadConversations();
     }
   };
+
+  // Clean assistant text from markdown/code artifacts for display
+  const cleanAssistantText = (raw: string) => {
+    if (!raw) return '';
+    let s = raw;
+    // Remove code fences and inline backticks
+    s = s.replace(/```[\s\S]*?```/g, '');
+    s = s.replace(/`([^`]+)`/g, '$1');
+    // Remove common markdown artifacts like *, //, -> when isolated
+    s = s.replace(/\*\*/g, '');
+    s = s.replace(/\* /g, '');
+    s = s.replace(/\n\s*\n/g, '\n\n');
+    s = s.replace(/\/\//g, '');
+    // Trim whitespace
+    s = s.trim();
+    return s;
+  }
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
@@ -208,9 +295,12 @@ I can now provide personalized skincare recommendations. What specific advice wo
         }
         
         // Add bot message - handle as C1 response if it's in JSON format
-        const isC1Response = typeof data.response === 'string' && 
-          (data.response.trim().startsWith('{') || data.response.trim().startsWith('<'));
-        addBotMessage(data.response, isC1Response);
+        let responseText = data.response;
+        if (isLikelyC1(responseText) || (responseText && (responseText.includes('&quot;') || responseText.includes('<')))) {
+          responseText = normalizeC1Response(responseText);
+        }
+        const isC1Response = isLikelyC1(responseText);
+        addBotMessage(responseText, isC1Response);
       } else {
         setError(data.error || 'Failed to get a response from the AI assistant');
         throw new Error(data.error || 'API request failed');
@@ -267,20 +357,66 @@ I can now provide personalized skincare recommendations. What specific advice wo
     }
   };
 
+  const openNewConversation = () => {
+    const newId = `user-${Date.now()}`;
+    setConversationId(newId);
+    // Start the 4-question profile flow when a new chat is opened
+    setMessages([]);
+    setAnswers([]);
+    setCurrentQuestionIndex(0);
+    setCurrentStep('questions');
+    // create a fresh conversation on the backend by calling reset with the new id
+    fetch('http://localhost:5000/api/chat/reset', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId: newId })
+    }).catch(() => {});
+    // refresh sidebar
+    setTimeout(loadConversations, 500);
+  };
+
+  const selectConversation = async (id: string) => {
+    setConversationId(id);
+    // Load conversation messages from debug endpoint
+    try {
+      const res = await fetch('http://localhost:5000/api/debug/conversations');
+      if (!res.ok) return;
+      const data = await res.json();
+      const conv = data.conversations && data.conversations[id];
+      if (conv && conv.messages) {
+        const normalized = conv.messages.map((m: any) => ({
+          id: `${m.role}-${Math.random().toString(36).slice(2,9)}`,
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+          isC1Response: !!(m.content && (typeof m.content === 'string') && (m.content.trim().startsWith('{') || m.content.trim().startsWith('<')))
+        }));
+        setMessages(normalized);
+        setCurrentStep('chat');
+      }
+    } catch (err) {
+      console.warn('Failed to load conversation messages', err);
+    }
+  };
+
   useEffect(() => {
-    if (currentStep === 'questions' && showChatbox && messages.length === 0) {
+    if (currentStep === 'questions' && messages.length === 0) {
       // Reset the conversation with the backend when starting a new chat session
       resetConversation().then(() => {
         // Start with first question
         setTimeout(() => {
           addBotMessage("Hello! I'm your FaceCare AI assistant. I'll ask you a few questions to personalize your skincare journey.");
           setTimeout(() => {
-            addBotMessage(questions[0].question);
+            const askObj = {
+              id: `q-0`,
+              question: questions[0].question,
+              options: questions[0].options
+            };
+            addBotMessage(questions[0].question, false, askObj);
           }, 1500);
         }, 500);
       });
     }
-  }, [currentStep, showChatbox]);
+  }, [currentStep]);
 
   return (
     <div className="min-h-screen bg-black text-white relative overflow-hidden">
@@ -323,68 +459,39 @@ I can now provide personalized skincare recommendations. What specific advice wo
       </header>
 
       <div className="relative mx-2 px-4 py-8 min-h-[calc(100vh-4rem)]">
-        {currentStep === 'intro' && (
-          <div className="text-center space-y-8 animate-fade-in max-w-3xl mx-auto">
-            <div className="space-y-4">
-              <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mx-auto">
-                <MessageCircle className="w-12 h-12 text-black" />
-              </div>
-              <h2 className="text-4xl font-bold">
-                AI Skincare Consultation
-              </h2>
-              <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-                Get personalized skincare recommendations based on your unique profile and concerns
-              </p>
+        <div className="flex h-[calc(100vh-4rem)] gap-6">
+          {/* Sidebar - conversations */}
+          <aside className="w-80 bg-gray-900/70 border border-gray-800 rounded-2xl p-4 overflow-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-semibold">Conversations</h4>
+              <button onClick={openNewConversation} className="text-xs bg-white text-black px-3 py-1 rounded">New Chat</button>
             </div>
-
-            <div className="space-y-6">
-              <div className="grid md:grid-cols-3 gap-6 text-left">
-                <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-                  <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4">
-                    <User className="w-6 h-6 text-white" />
+            <div className="space-y-2">
+              {conversations.length === 0 && (
+                <div className="text-xs text-gray-400">No recent conversations</div>
+              )}
+              {conversations.map((conv: any) => (
+                <button key={conv.id} onClick={() => selectConversation(conv.id)} className="w-full text-left p-2 rounded-lg hover:bg-gray-800/60 transition-colors flex items-center justify-between">
+                  <div>
+                    <div className="text-sm font-medium">{conv.id}</div>
+                    <div className="text-xs text-gray-400">{conv.message_count} messages</div>
                   </div>
-                  <h3 className="text-lg font-semibold mb-2">Personal Assessment</h3>
-                  <p className="text-gray-400 text-sm">Quick questions about your age, skin type, and lifestyle</p>
-                </div>
-
-                <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-                  <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4">
-                    <Bot className="w-6 h-6 text-white" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">AI Analysis</h3>
-                  <p className="text-gray-400 text-sm">Advanced algorithms analyze your responses for insights</p>
-                </div>
-
-                <div className="bg-gray-900 rounded-xl p-6 border border-gray-800">
-                  <div className="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mb-4">
-                    <Sparkles className="w-6 h-6 text-white" />
-                  </div>
-                  <h3 className="text-lg font-semibold mb-2">Custom Recommendations</h3>
-                  <p className="text-gray-400 text-sm">Tailored skincare routine and product suggestions</p>
-                </div>
-              </div>
-
-              <button
-                onClick={handleStartConsultation}
-                className="bg-white text-black px-8 py-4 rounded-xl font-semibold text-lg hover:bg-gray-200 transition-all duration-300 transform hover:scale-105 hover:shadow-xl flex items-center space-x-2 mx-auto"
-              >
-                <span>Start Consultation</span>
-                <ChevronRight className="w-5 h-5" />
-              </button>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </button>
+              ))}
             </div>
-          </div>
-        )}
+          </aside>
 
-        {(currentStep === 'questions' || currentStep === 'chat') && (
-          <div className={`transition-all duration-500 h-full ${showChatbox ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
-            <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800/50 overflow-hidden max-w-5xl mx-auto h-[80vh] flex flex-col">
-              {/* Chat Messages */}
+          {/* Main chat area (fills remaining) */}
+          <main className="flex-1 bg-transparent">
+            <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800/50 overflow-hidden h-full flex flex-col">
+              {/* Messages area */}
               <div className="flex-1 overflow-y-auto p-6 space-y-4">
                 {messages.map((message, index) => (
                   <div
                     key={message.id}
                     className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-slide-up`}
-                    style={{ animationDelay: `${index * 0.1}s` }}
+                    style={{ animationDelay: `${index * 0.03}s` }}
                   >
                     <div className={`flex items-start space-x-3 max-w-[80%] ${message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
@@ -413,7 +520,6 @@ I can now provide personalized skincare recommendations. What specific advice wo
                                     isStreaming={false}
                                     onAction={(action) => {
                                       console.log('C1 component action:', action);
-                                      // Handle any actions from the C1 component
                                       const actionMessage = `User action: ${action.llmFriendlyMessage}`;
                                       setInputMessage(actionMessage);
                                       setTimeout(() => handleSendMessage(), 100);
@@ -444,7 +550,6 @@ I can now provide personalized skincare recommendations. What specific advice wo
                   </div>
                 ))}
 
-                {/* Error message display */}
                 {error && (
                   <div className="mx-auto my-4 p-3 border border-red-500 bg-red-500/20 rounded-lg max-w-[80%]">
                     <p className="text-red-400 text-sm">
@@ -476,7 +581,7 @@ I can now provide personalized skincare recommendations. What specific advice wo
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Question Options or Input */}
+              {/* Input area */}
               <div className="border-t border-gray-800 p-6 flex-shrink-0">
                 {currentStep === 'questions' && currentQuestionIndex < questions.length && questions[currentQuestionIndex].options ? (
                   <div className="space-y-3">
@@ -538,8 +643,8 @@ I can now provide personalized skincare recommendations. What specific advice wo
                 ) : null}
               </div>
             </div>
-          </div>
-        )}
+          </main>
+        </div>
       </div>
     </div>
   );

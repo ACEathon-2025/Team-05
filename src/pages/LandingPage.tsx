@@ -1,77 +1,130 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Camera, 
   Brain, 
   Shield, 
   Activity,
-  Users,
-  CheckCircle,
   ArrowRight,
-  Play,
-  Star,
-  Award,
-  Zap
+  Award
 } from 'lucide-react';
 import GlowButton from '../components/GlowButton';
 import FeatureCard from '../components/FeatureCard';
+import Hyperspeed from '../components/hyperspped';
+import PillNav from '../components/nav';
+import TrueFocus from '../components/focus';
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Define navigation items for PillNav
+  const navItems = [
+    { label: 'Home', href: '/' },
+    { label: 'Features', href: '#features' },
+    { label: 'How It Works', href: '#how-it-works' },
+    { label: 'About', href: '#about' },
+    { label: 'Contact', href: '#contact' },
+    { label: 'Sign In', href: '/auth' }
+  ];
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 bg-black/90 backdrop-blur-sm border-b border-gray-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <h1 className="text-lg md:text-xl font-bold gradient-text">FaceCare AI</h1>
-            </div>
-            <div className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-gray-300 hover:text-white transition-colors">Features</a>
-              <a href="#how-it-works" className="text-gray-300 hover:text-white transition-colors">How It Works</a>
-              <a href="#about" className="text-gray-300 hover:text-white transition-colors">About</a>
-              <a href="#contact" className="text-gray-300 hover:text-white transition-colors">Contact</a>
-              <GlowButton onClick={() => navigate('/auth')} size="sm">
-                Get Started
-              </GlowButton>
-            </div>
-            {/* Mobile Menu Button */}
-            <div className="md:hidden">
-              <GlowButton onClick={() => navigate('/auth')} size="sm">
-                Sign In
-              </GlowButton>
-            </div>
-          </div>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-black text-white relative">
+      {/* PillNav Navigation */}
+      <div className="flex justify-center w-full fixed top-0 z-50">
+        <PillNav 
+          logo="/images/facecare.png" // Use logo from public/images/facecare.png
+          logoAlt="FaceCare AI"
+          items={navItems}
+          activeHref={location.pathname}
+          ease="power2.easeOut"
+          className="mt-6"
+          baseColor="#5227FF" // Purple matching the color scheme
+          pillColor="#0a0a0a" // Dark background for pills
+          hoveredPillTextColor="#fff"
+          pillTextColor="#fff"
+        />
+      </div>
 
       {/* Hero Section */}
-      <section className="hero-bg min-h-screen flex items-center justify-center px-4 pt-16">
-        <div className="max-w-6xl mx-auto text-center">
-          <div className="mb-8 md:mb-12">
-            <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold mb-4 md:mb-6 leading-tight">
-              Professional AI-Powered
-              <span className="gradient-text block">Skin Health Analysis</span>
-            </h1>
-            <p className="text-base md:text-lg lg:text-xl text-gray-300 mb-6 md:mb-8 max-w-3xl mx-auto leading-relaxed px-4">
-              Advanced artificial intelligence technology for comprehensive skin health assessment, 
+      <section className="min-h-screen flex items-center justify-center px-4 pt-32 relative z-10">
+        {/* Hyperspeed Background for hero section only */}
+        <div className="absolute inset-0 z-0 pointer-events-auto">
+          <Hyperspeed
+            effectOptions={{
+              distortion: 'turbulentDistortion',
+              length: 400,
+              roadWidth: 10,
+              islandWidth: 2,
+              lanesPerRoad: 4,
+              fov: 90,
+              fovSpeedUp: 150,
+              speedUp: 2,
+              carLightsFade: 0.4,
+              totalSideLightSticks: 20,
+              lightPairsPerRoadWay: 40,
+              shoulderLinesWidthPercentage: 0.05,
+              brokenLinesWidthPercentage: 0.1,
+              brokenLinesLengthPercentage: 0.5,
+              lightStickWidth: [0.12, 0.5],
+              lightStickHeight: [1.3, 1.7],
+              movingAwaySpeed: [60, 80],
+              movingCloserSpeed: [-120, -160],
+              carLightsLength: [400 * 0.03, 400 * 0.2],
+              carLightsRadius: [0.05, 0.14],
+              carWidthPercentage: [0.3, 0.5],
+              carShiftX: [-0.8, 0.8],
+              carFloorSeparation: [0, 5],
+              colors: {
+                roadColor: 0x080808,
+                islandColor: 0x0a0a0a,
+                background: 0x000000,
+                shoulderLines: 0xFFFFFF,
+                brokenLines: 0xFFFFFF,
+                // Updated to black/white/purple theme
+                leftCars: [0xFFFFFF, 0xDDDDDD, 0xCCCCCC],
+                rightCars: [0x5227FF, 0x7A5AF8, 0x9F88FF],
+                sticks: 0x5227FF,
+              }
+            }}
+          />
+        </div>
+        
+        <div className="max-w-5xl mx-auto text-center p-8 relative z-10">
+          <div className="mb-8">
+            <div className="mb-4">
+              <div className="overflow-hidden py-2">
+                <TrueFocus 
+                  sentence="Professional AI-Powered"
+                  manualMode={false}
+                  blurAmount={1.5}
+                  borderColor="#5227FF"
+                  glowColor="rgba(82, 39, 255, 0.6)"
+                  animationDuration={1.2}
+                  pauseBetweenAnimations={1.8}
+                  fontSize="2.6rem"
+                  fontWeight={650}
+                />
+              </div>
+              <h2 className="text-lg sm:text-xl md:text-2xl font-semibold mt-3">
+                Skin Health Analysis
+              </h2>
+            </div>
+
+            <p className="text-xs md:text-sm text-gray-300 mb-6 md:mb-8 max-w-2xl mx-auto leading-relaxed px-2 font-light">
+              Advanced artificial intelligence technology for comprehensive skin health assessment,
               personalized treatment recommendations, and professional-grade analysis.
             </p>
-            <div className="flex flex-col sm:flex-row gap-3 md:gap-4 justify-center px-4">
+
+            <div className="flex flex-col sm:flex-row gap-3 justify-center px-2 mt-4">
               <GlowButton 
-                size="lg" 
+                size="sm" 
                 onClick={() => navigate('/auth')}
-                className="text-sm md:text-base w-full sm:w-auto"
+                className="text-xs w-full sm:w-auto px-6 py-2 tracking-wider"
               >
-                Start Analysis
-                <ArrowRight className="w-4 h-4 md:w-5 md:h-5 ml-2" />
+                START ANALYSIS
+                <ArrowRight className="w-20 h-3 ml-2" />
               </GlowButton>
-              <button className="flex items-center justify-center px-6 md:px-8 py-3 md:py-4 text-sm md:text-base font-semibold text-white border border-gray-600 rounded-lg hover:border-purple-500 transition-colors w-full sm:w-auto">
-                <Play className="w-4 h-4 md:w-5 md:h-5 mr-2" />
-                Watch Demo
-              </button>
             </div>
           </div>
         </div>
