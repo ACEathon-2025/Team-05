@@ -138,17 +138,17 @@ const AuthPage: React.FC = () => {
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: 'url(https://images.unsplash.com/photo-1559757148-5c350d0d3c56?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80)'
+            backgroundImage: 'url(https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80)'
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-purple-900/50 to-black/70" />
+        <div className="absolute inset-0 bg-gradient-to-br from-black/70 via-green-900/40 to-black/70" />
         
         <div className="relative z-10 flex flex-col justify-center items-start p-12 text-white">
           <div className="mb-8">
             <h1 className="text-4xl font-bold mb-4">
               <span className="gradient-text">FaceCare AI</span>
             </h1>
-            <div className="w-20 h-1 bg-gradient-to-r from-purple-600 to-cyan-500"></div>
+            <div className="w-20 h-1 bg-gradient-to-r from-green-500 to-green-300"></div>
           </div>
           
           <blockquote className="text-2xl font-light leading-relaxed mb-8 max-w-md">
@@ -157,15 +157,15 @@ const AuthPage: React.FC = () => {
           
           <div className="space-y-4 text-gray-300">
             <div className="flex items-center">
-              <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+              <div className="w-2 h-2 bg-green-400 rounded-full mr-3"></div>
               <span>Professional-grade analysis</span>
             </div>
             <div className="flex items-center">
-              <div className="w-2 h-2 bg-cyan-500 rounded-full mr-3"></div>
+              <div className="w-2 h-2 bg-green-300 rounded-full mr-3"></div>
               <span>Personalized recommendations</span>
             </div>
             <div className="flex items-center">
-              <div className="w-2 h-2 bg-purple-500 rounded-full mr-3"></div>
+              <div className="w-2 h-2 bg-green-400 rounded-full mr-3"></div>
               <span>Real-time skin monitoring</span>
             </div>
           </div>

@@ -133,6 +133,14 @@ const AnalysisResults: React.FC = () => {
         setAnalysisData(result.data);
         console.log('📊 Analysis data set:', result.data);
         
+        // Save analysis to localStorage so chat/medicine flows can reference it
+        try {
+          localStorage.setItem('facecare_analysis', JSON.stringify(result.data));
+          console.log('💾 Saved analysis to localStorage (facecare_analysis)');
+        } catch (e) {
+          console.warn('Could not save analysis to localStorage', e);
+        }
+
         // Save analysis result to history
         try {
           const { historyItem, error } = await analysisHelpers.saveAnalysisResult(result.data, base64Image);
@@ -420,34 +428,36 @@ const AnalysisResults: React.FC = () => {
     <div className="min-h-screen bg-black text-white">
       {/* Header */}
       <header className="bg-black border-b border-gray-800 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4 min-w-0 flex-1">
               <button 
                 onClick={() => navigate('/dashboard')}
-                className="p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-white"
+                className="p-2 hover:bg-gray-800 rounded-lg transition-colors text-gray-400 hover:text-white flex-shrink-0"
               >
-                <ArrowLeft className="w-6 h-6" />
+                <ArrowLeft className="w-5 h-5 sm:w-6 sm:h-6" />
               </button>
-              <h1 className="text-xl font-bold gradient-text">FaceCare AI</h1>
-              <span className="text-gray-400">Analysis Results</span>
+              <h1 className="text-lg sm:text-xl font-bold gradient-text truncate">FaceCare AI</h1>
+              <span className="text-gray-400 text-sm sm:text-base hidden sm:inline">Analysis Results</span>
             </div>
             
-            <div className="flex items-center space-x-4">
-              <GlowButton variant="secondary" size="sm" onClick={exportReportAsPDF}>
-                <Download className="w-4 h-4 mr-2" />
-                Download Report
+            <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 sm:space-x-4 flex-shrink-0">
+              <GlowButton variant="secondary" size="sm" onClick={exportReportAsPDF} className="w-full sm:w-auto text-xs">
+                <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                <span className="hidden sm:inline">Download Report</span>
+                <span className="sm:hidden">Download</span>
               </GlowButton>
-              <GlowButton variant="secondary" size="sm" onClick={shareReport}>
-                <Share className="w-4 h-4 mr-2" />
-                Share with Doctor
+              <GlowButton variant="secondary" size="sm" onClick={shareReport} className="w-full sm:w-auto text-xs">
+                <Share className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                <span className="hidden sm:inline">Share with Doctor</span>
+                <span className="sm:hidden">Share</span>
               </GlowButton>
             </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 py-4 sm:py-8">
         {/* Scan Results Overview */}
         <div className="mb-12">
           {/* Face Image with Markers */}
@@ -641,17 +651,19 @@ const AnalysisResults: React.FC = () => {
           </div>
         </div>
                   {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4 justify-center mb-8">
-          <GlowButton onClick={() => navigate('/dashboard')} size="lg">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8 px-4">
+          <GlowButton onClick={() => navigate('/dashboard')} size="lg" className="w-full sm:w-auto">
             New Analysis
           </GlowButton>
-          <GlowButton variant="secondary" size="lg" onClick={exportReportAsPDF}>
+          <GlowButton variant="secondary" size="lg" onClick={exportReportAsPDF} className="w-full sm:w-auto">
             <Download className="w-5 h-5 mr-2" />
-            Download Report
+            <span className="hidden sm:inline">Download Report</span>
+            <span className="sm:hidden">Download</span>
           </GlowButton>
-          <GlowButton variant="secondary" size="lg" onClick={shareReport}>
+          <GlowButton variant="secondary" size="lg" onClick={shareReport} className="w-full sm:w-auto">
             <Share className="w-5 h-5 mr-2" />
-            Share Results
+            <span className="hidden sm:inline">Share Results</span>
+            <span className="sm:hidden">Share</span>
           </GlowButton>
         </div>
       </div>
@@ -705,17 +717,19 @@ const AnalysisResults: React.FC = () => {
         </div>
 
         {/* Action Buttons */}
-        <div className="flex flex-wrap gap-4 justify-center mb-8">
-          <GlowButton onClick={() => navigate('/dashboard')} size="lg">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8 px-4">
+          <GlowButton onClick={() => navigate('/dashboard')} size="lg" className="w-full sm:w-auto">
             New Analysis
           </GlowButton>
-          <GlowButton variant="secondary" size="lg">
+          <GlowButton variant="secondary" size="lg" className="w-full sm:w-auto">
             <Download className="w-5 h-5 mr-2" />
-            Download Report
+            <span className="hidden sm:inline">Download Report</span>
+            <span className="sm:hidden">Download</span>
           </GlowButton>
-          <GlowButton variant="secondary" size="lg">
+          <GlowButton variant="secondary" size="lg" className="w-full sm:w-auto">
             <Share className="w-5 h-5 mr-2" />
-            Share Results
+            <span className="hidden sm:inline">Share Results</span>
+            <span className="sm:hidden">Share</span>
           </GlowButton>
         </div>
       </div>

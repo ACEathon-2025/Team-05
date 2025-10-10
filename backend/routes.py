@@ -21,6 +21,19 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
+# Simple in-memory cache to deduplicate identical analysis requests for a short TTL
+from hashlib import sha256
+import time
+import threading
+
+# cache: map image_hash -> (timestamp_seconds, response_json)
+_analysis_cache = {}
+_ANALYSIS_CACHE_TTL = 60  # seconds
+
+# track images currently being processed so concurrent requests can wait for the first
+_analysis_in_progress = set()
+_analysis_lock = threading.Lock()
+
 # Check for required API keys
 if not os.environ.get("THESYS_API_KEY"):
     logger.warning("THESYS_API_KEY not found in environment variables. Chat functionality will use fallback responses.")
@@ -132,9 +145,74 @@ def analyze_skin():
         logger.info("Starting LangGraph agent processing")
         
         # Invoke the LangGraph workflow
-        result = graph.invoke({"messages": [multimodal_message]})
-        
-        logger.info("LangGraph processing completed")
+        # Compute a stable hash for deduplication (use the processed data URL)
+        image_hash = sha256(processed_image.encode('utf-8')).hexdigest()
+
+        # Use a lock to make cache and in-progress checks atomic to avoid race conditions
+        now = time.time()
+        with _analysis_lock:
+            cached = _analysis_cache.get(image_hash)
+            if cached and now - cached[0] < _ANALYSIS_CACHE_TTL:
+                logger.info("Found cached analysis result for same image - returning cached response")
+                return jsonify(cached[1])
+
+            if image_hash in _analysis_in_progress:
+                waiting = True
+            else:
+                # Mark as in-progress for this thread/process
+                _analysis_in_progress.add(image_hash)
+                waiting = False
+
+        # If another request is already processing this image, wait until it completes and return the cached result
+        if waiting:
+            wait_start = time.time()
+            while True:
+                with _analysis_lock:
+                    cached = _analysis_cache.get(image_hash)
+                    if cached and time.time() - cached[0] < _ANALYSIS_CACHE_TTL:
+                        logger.info("Concurrent analysis finished; returning cached response")
+                        return jsonify(cached[1])
+                    still_processing = image_hash in _analysis_in_progress
+                # wait up to 12 seconds for the other process to finish
+                if not still_processing:
+                    logger.info("Other processing finished but no cached result found; proceeding to analyze")
+                    break
+                if time.time() - wait_start > 12:
+                    logger.warning("Waited for concurrent analysis but timed out; proceeding to analyze")
+                    break
+                time.sleep(0.25)
+
+        # At this point, this worker is responsible for invoking the graph. Ensure in-progress is set.
+        with _analysis_lock:
+            _analysis_in_progress.add(image_hash)
+
+        try:
+            result = graph.invoke({"messages": [multimodal_message]})
+            logger.info("LangGraph processing completed")
+        finally:
+            # On completion, remove in-progress and cache result under lock
+            try:
+                now = time.time()
+                # Attempt to extract final_output quickly; if parsing later fails, cached payload will be updated below
+                final_output = None
+                try:
+                    final_output = result.get("final_output", "")
+                except Exception:
+                    final_output = None
+                # Prepare a minimal cached payload placeholder while we process the output
+                with _analysis_lock:
+                    _analysis_in_progress.discard(image_hash)
+                    # Do not overwrite an existing recent cache
+                    existing = _analysis_cache.get(image_hash)
+                    if not existing:
+                        _analysis_cache[image_hash] = (now, {"success": True, "data": None, "raw_output": final_output})
+            except Exception:
+                # ensure we always remove the in-progress flag
+                try:
+                    with _analysis_lock:
+                        _analysis_in_progress.discard(image_hash)
+                except Exception:
+                    pass
         
         # Extract the final output
         final_output = result.get("final_output", "")
@@ -198,12 +276,18 @@ def analyze_skin():
                     elif field == "issue_description":
                         analysis_result[field] = "Analysis completed"
             
-            return jsonify({
+            response_payload = {
                 "success": True,
                 "data": analysis_result,
                 "raw_output": final_output,  # Include raw output for debugging
                 "cleaned_output": clean_text(final_output)
-            })
+            }
+            # Cache the successful parse result for this image
+            try:
+                _analysis_cache[image_hash] = (now, response_payload)
+            except Exception:
+                pass
+            return jsonify(response_payload)
             
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse JSON: {e}")
@@ -270,6 +354,117 @@ def test_endpoint():
     except Exception as e:
         logger.error(f"Test endpoint error: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/analyze-medicines', methods=['POST'])
+def analyze_medicines():
+    """Analyze user's current skincare products/medicines"""
+    try:
+        data = request.get_json()
+        medicines = data.get('medicines', [])
+        user_id = data.get('userId')
+        conversation_id = data.get('conversationId')
+        
+        logger.info(f"Analyzing medicines: {medicines} for user: {user_id}")
+        
+        if not medicines:
+            return jsonify({"error": "No medicines provided"}), 400
+        
+        # Expect the frontend to pass previously stored user analysis in the request
+        user_analysis = data.get('userAnalysis')
+
+        if not user_analysis:
+            # If user analysis is not provided, instruct frontend/user to run analysis first
+            return jsonify({
+                "success": False,
+                "error": "missing_user_analysis",
+                "message": "Please complete your skin analysis first before uploading your current products. The analysis helps provide personalized recommendations about your products."
+            }), 400
+        
+        # Create the medicine analysis query and include user's skin analysis
+        medicine_list = ", ".join(medicines)
+        user_analysis_text = json.dumps(user_analysis) if not isinstance(user_analysis, str) else user_analysis
+        query = f"""
+        The user provided the following skin analysis (from their recent skin assessment):
+        {user_analysis_text}
+
+        The user also provided these skincare products: {medicine_list}
+
+        Using the user's skin analysis, analyze each product and answer for each product:
+        1. Main ingredients and their benefits
+        2. Skin type suitability (based on the user's analysis)
+        3. Potential side effects or concerns for this user's skin
+        4. How it fits into the user's skincare routine
+        5. Any interactions between products if multiple are listed
+
+        Provide a clear recommendation for this user specifically: should they continue, stop, or modify use and why.
+
+        Format the response as plain text (no UI components) and keep it readable.
+        """
+
+        # Use the specialized medicine analysis agent
+        try:
+            from agents import medicine_graph
+            response = medicine_graph.invoke({
+                "messages": [HumanMessage(content=query)]
+            })
+            
+            if response and "final_output" in response:
+                analysis_result = response["final_output"]
+            elif response and "messages" in response:
+                last_message = response["messages"][-1]
+                analysis_result = last_message.content
+            else:
+                analysis_result = "Unable to analyze the products at this time. Please try again later."
+            
+            # Clean up any JSON artifacts from the response
+                if isinstance(analysis_result, str):
+                    # Remove any JSON wrapping if present
+                    if analysis_result.strip().startswith('{') and analysis_result.strip().endswith('}'):
+                        try:
+                            # use the module imported at the top-level (avoids creating a local name)
+                            parsed = json.loads(analysis_result)
+                            if isinstance(parsed, dict):
+                                if 'message' in parsed:
+                                    analysis_result = parsed['message']
+                                elif 'content' in parsed:
+                                    analysis_result = parsed['content']
+                                elif 'text' in parsed:
+                                    analysis_result = parsed['text']
+                        except Exception:
+                            # If parsing fails, keep original text
+                            pass
+                
+        except Exception as agent_error:
+            logger.error(f"Agent error during medicine analysis: {agent_error}")
+            # Fallback response
+            analysis_result = f"""
+            Thank you for sharing your current products: {medicine_list}
+
+            Here's a general analysis of your skincare routine:
+
+            **Product Analysis:**
+            For each product you've listed, I recommend:
+            - Check the ingredient list for any known allergens
+            - Introduce new products gradually to test skin tolerance
+            - Maintain consistency in your routine for best results
+
+            **General Recommendations:**
+            - Always patch test new products
+            - Use sunscreen daily as the final step in your morning routine
+            - Consider the order of application: thinnest to thickest consistency
+
+            For personalized advice based on your specific skin analysis, please ensure you've completed your skin assessment first.
+            """
+        
+        return jsonify({
+            "success": True,
+            "analysis": analysis_result
+        })
+        
+    except Exception as e:
+        logger.error(f"Medicine analysis error: {e}")
+        logger.error(traceback.format_exc())
+        return jsonify({"error": "Failed to analyze medicines"}), 500
 
 # Initialize chat routes
 create_chat_route(app)

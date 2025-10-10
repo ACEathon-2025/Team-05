@@ -76,20 +76,53 @@ def create_chat_route(app):
                     "content": user_message
                 })
             
-            # Call the C1 API
-            logger.info(f"Sending request to C1 API with {len(user_conversations[conversation_id])} messages")
+            # Call the API for simple text response (not C1 UI components)
+            logger.info(f"Sending request to API with {len(user_conversations[conversation_id])} messages")
             try:
-                completion = client.chat.completions.create(
-                    model="c1/anthropic/claude-3.5-sonnet/v-20250709", # Use the appropriate C1 model
-                    messages=user_conversations[conversation_id],
-                    temperature=0.7,
-                    max_tokens=800,
-                    response_format={"type": "ui"}  # Request UI components in the response
-                )
+                # Use the LangGraph agent for simple text responses instead of C1
+                from agents import graph
+                from langchain_core.messages import HumanMessage
                 
-                # Get the response
-                assistant_message = completion.choices[0].message.content
-                logger.info(f"Received response from C1: {assistant_message[:50]}...")
+                # Get the latest user message for the agent
+                latest_message = user_conversations[conversation_id][-1]['content']
+                
+                response = graph.invoke({
+                    "messages": [HumanMessage(content=latest_message)]
+                })
+                
+                if response and "final_output" in response:
+                    assistant_message = response["final_output"]
+                elif response and "messages" in response:
+                    last_message = response["messages"][-1]
+                    assistant_message = last_message.content
+                else:
+                    assistant_message = "I'm here to help with your skincare questions. Could you please provide more details about what you'd like to know?"
+                
+                # Clean up any JSON artifacts from the response
+                # Unwrap triple-backtick fences like ```json { ... } ```
+                if isinstance(assistant_message, str):
+                    import re
+                    fence_regex = re.compile(r"```(?:json)?\s*([\s\S]*?)\s*```", re.IGNORECASE)
+                    m = fence_regex.search(assistant_message)
+                    if m:
+                        assistant_message = m.group(1).strip()
+
+                    # If message is a JSON blob, try to extract main text fields
+                    try:
+                        import json
+                        parsed = json.loads(assistant_message)
+                        if isinstance(parsed, dict):
+                            if 'message' in parsed:
+                                assistant_message = parsed['message']
+                            elif 'content' in parsed:
+                                assistant_message = parsed['content']
+                            elif 'text' in parsed:
+                                assistant_message = parsed['text']
+                    except Exception:
+                        # not JSON or parse failed, keep original string
+                        pass
+                
+                logger.info(f"Received response from agent: {assistant_message[:50]}...")
                 
                 # Add the response to history
                 user_conversations[conversation_id].append({
@@ -105,14 +138,30 @@ def create_chat_route(app):
                 })
                 
             except Exception as api_error:
-                logger.error(f"C1 API error: {api_error}")
+                logger.error(f"Agent API error: {api_error}")
                 # If there's an API error, use a fallback response strategy
+                assistant_message = f"""
+                Hello! I'm your AI skincare assistant. I'm here to help you with:
+
+                • **Skincare routine recommendations** - Get personalized advice based on your skin type
+                • **Product analysis** - Learn about ingredients and product effectiveness  
+                • **Skin concerns** - Address acne, aging, dryness, sensitivity, and more
+                • **Product recommendations** - Find products that work for your specific needs
+
+                What would you like to know about skincare today?
+                """
+                
+                # Add the fallback response to history
+                user_conversations[conversation_id].append({
+                    "role": "assistant",
+                    "content": assistant_message
+                })
+                
                 return jsonify({
-                    "success": False,
-                    "error": str(api_error),
-                    "response": "I'm having trouble accessing my skincare knowledge database. Please try again shortly.",
+                    "success": True,
+                    "response": assistant_message,
                     "conversationId": conversation_id
-                }), 500
+                })
                 
         except Exception as e:
             logger.error(f"Chat error: {e}")

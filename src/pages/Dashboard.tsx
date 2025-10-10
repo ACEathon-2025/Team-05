@@ -223,10 +223,10 @@ const Dashboard: React.FC = () => {
       <header className={`border-b sticky top-0 z-50 transition-colors duration-300 ${
         isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-200'
       }`}>
-        <div className="max-w-7xl mx-auto px-4">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4">
           <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-bold gradient-text">FaceCare AI</h1>
+            <div className="flex items-center space-x-2 sm:space-x-4">
+              <h1 className="text-lg sm:text-xl font-bold gradient-text">FaceCare AI</h1>
             </div>
 
             {/* Desktop Navigation */}
@@ -375,20 +375,20 @@ const Dashboard: React.FC = () => {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-4 md:py-8">
+        <div className="max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4 md:py-8">
         {/* Welcome Section */}
-        <div className="mb-6 md:mb-8">
-          <h2 className="text-xl md:text-2xl font-bold mb-2">
+        <div className="mb-4 sm:mb-6 md:mb-8">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-2">
             Welcome back, {user?.email ? user.email.split('@')[0] : 'User'}
           </h2>
-          <p className={`${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Ready for your skin health analysis?</p>
+          <p className={`text-sm sm:text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Ready for your skin health analysis?</p>
         </div>
 
         {/* Main Analysis Section */}
-        <div className="glassmorphism rounded-2xl p-4 md:p-8 mb-8 md:mb-12">
-          <div className="text-center mb-6 md:mb-8">
-            <h3 className="text-xl md:text-2xl font-bold mb-4">Start New Analysis</h3>
-            <p className={`mb-6 md:mb-8 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+        <div className="glassmorphism rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-8 mb-6 sm:mb-8 md:mb-12">
+          <div className="text-center mb-4 sm:mb-6 md:mb-8">
+            <h3 className="text-lg sm:text-xl md:text-2xl font-bold mb-4">Start New Analysis</h3>
+            <p className={`mb-4 sm:mb-6 md:mb-8 text-sm sm:text-base ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
               Choose your preferred method for skin analysis
             </p>
             

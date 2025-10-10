@@ -294,7 +294,103 @@ graph = workflow.compile()
 
 
 # ---------------------------
-# 6. Example usage
+# 7. Medicine Analysis Agent
+# ---------------------------
+def medicine_analysis_agent(state: AgentState) -> dict:
+    """Specialized agent for analyzing skincare products/medicines"""
+    messages = state.get("messages", [])
+    if not messages:
+        return {
+            "messages": [AIMessage(content="No medicines provided for analysis", name="Medicine_Analyzer")],
+            "final_output": "No medicines provided for analysis"
+        }
+    
+    last_message = messages[-1]
+    if isinstance(last_message, dict):
+        message_content = last_message.get("content", "")
+    else:
+        message_content = last_message.content
+    
+    # Enhanced prompt for medicine analysis
+    medicine_analysis_prompt = f"""
+    You are an expert dermatologist and skincare specialist. Analyze the provided skincare products/medicines with the following structure:
+
+    For each product mentioned, provide:
+    
+    **Product Name: [Product Name]**
+    
+    1. **Key Ingredients Analysis:**
+       - List main active ingredients
+       - Explain benefits of each ingredient
+       - Identify any potentially irritating ingredients
+    
+    2. **Skin Type Suitability:**
+       - Best suited for which skin types (oily, dry, combination, sensitive)
+       - Any skin types that should avoid this product
+    
+    3. **Usage Recommendations:**
+       - When to use (morning/evening)
+       - Application order in routine
+       - Frequency of use
+    
+    4. **Potential Concerns:**
+       - Side effects to watch for
+       - Contraindications
+       - Patch test recommendations
+    
+    5. **Product Interactions:**
+       - How it works with other common skincare ingredients
+       - Products to avoid using together
+    
+    **Overall Routine Assessment:**
+    - Comment on the overall combination of products
+    - Suggest any missing steps in the routine
+    - Provide general skincare tips
+    
+    User's products to analyze: {message_content}
+    
+    Provide a comprehensive, professional analysis that's easy to understand.
+    """
+    
+    agent_message = HumanMessage(content=medicine_analysis_prompt)
+    
+    response = llm_with_tools.invoke([agent_message])
+    output = response.content if hasattr(response, 'content') else str(response)
+    
+    # If the model wants to use tools (like web search for product info)
+    if response.tool_calls:
+        # Handle tool calls if needed
+        tool_node = ToolNode(tools)
+        tool_messages = tool_node.invoke({"messages": [response]})
+        
+        # Get final response after tool usage
+        final_response = llm.invoke([agent_message, response] + tool_messages["messages"])
+        output = final_response.content if hasattr(final_response, 'content') else str(final_response)
+    
+    return {
+        "messages": [AIMessage(content=output, name="Medicine_Analyzer")],
+        "final_output": output
+    }
+
+# Create a separate graph for medicine analysis
+medicine_workflow = StateGraph(AgentState)
+medicine_workflow.add_node("medicine_analyzer", medicine_analysis_agent)
+medicine_workflow.add_node("tools", ToolNode(tools))
+medicine_workflow.set_entry_point("medicine_analyzer")
+medicine_workflow.add_conditional_edges(
+    "medicine_analyzer",
+    tools_condition,
+    {
+        "tools": "tools",
+        "__end__": END,
+    }
+)
+medicine_workflow.add_edge("tools", "medicine_analyzer")
+medicine_graph = medicine_workflow.compile()
+
+
+# ---------------------------
+# 8. Example usage
 # ---------------------------
 # if __name__ == "__main__":
 #     # Example 1: Text only
