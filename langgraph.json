@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+  "facetohealth": "./agents.py:graph"
+  },
+  "env": ".env"
+}
